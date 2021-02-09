@@ -1,5 +1,5 @@
 
-FROM ubuntu:bionic
+FROM ubuntu:20.04
 
 # Install core components
 ENV DEBIAN_FRONTEND noninteractive
@@ -19,11 +19,11 @@ RUN apt-get install -y apache2 apache2-doc apache2-utils && \
     a2dismod status && \
     a2dissite 000-default
 
-# PHP 7.2 and install MySQL PDO extension
+# PHP 7.4 and install MySQL PDO extension
 RUN apt-get install -y libapache2-mod-php php php-dev php-json \
         php-mysql php-redis php-xml php-mbstring \
         php-gd php-pear php-opcache \
-        pkg-config libbson-1.0 libmongoc-1.0-0
+        pkg-config libbson-1.0 libmongoc-1.0-0 php7.4-curl
 
 # Fix php.ini with recommended settings
 RUN sed -i \
@@ -31,10 +31,13 @@ RUN sed -i \
         -e "s/memory_limit = 128M/memory_limit = 2048M/" \
         -e "s/upload_max_filesize = 2M/upload_max_filesize = 50M/" \
         -e "s/post_max_size = 8M/post_max_size = 50M/" \
-        /etc/php/7.2/apache2/php.ini
+        /etc/php/7.4/apache2/php.ini
 
-RUN apt-get install -y python3-dev python3-pip python3-setuptools \
-        python3-lxml libjpeg-dev \
+# We need to remove some of the python libraries installed by default for compatibility problems
+# We cannot use pip to uninstall them
+RUN dpkg -l | grep "python3-" | cut -d " " -f3 | grep -E "^python3-" | xargs apt-get remove -y && \
+    apt-get install -y python3-dev python3-pip \
+        libjpeg-dev \
         libxml2-dev libxslt1-dev zlib1g-dev libfuzzy-dev && \
     apt-get install -y cron logrotate supervisor syslog-ng-core && \
     apt-get clean
@@ -50,12 +53,19 @@ RUN git checkout tags/$(git describe --tags `git rev-list --tags --max-count=1`)
     git submodule foreach --recursive git config core.filemode false
 
 USER root
-RUN pip3 install git+https://github.com/STIXProject/python-stix.git \
-                 git+https://github.com/CybOXProject/python-cybox.git \
-                 git+https://github.com/CybOXProject/mixbox.git \
-                 git+https://github.com/MAECProject/python-maec.git \
-                 /var/www/MISP/cti-python-stix2 \
-                 plyara
+RUN pip3 install virtualenv && virtualenv -p python3 /var/www/MISP/venv && \
+    /var/www/MISP/venv/bin/pip install git+https://github.com/STIXProject/python-stix.git \
+                                       git+https://github.com/CybOXProject/python-cybox.git \
+                                       git+https://github.com/CybOXProject/mixbox.git \
+                                       git+https://github.com/MAECProject/python-maec.git \
+                                       git+https://github.com/kbandla/pydeep.git \
+                                       /var/www/MISP/cti-python-stix2 \
+                                       /var/www/MISP/PyMISP \
+                                       plyara \
+                                       python-magic \
+                                       lief \
+                                       zmq \
+                                       redis
 
 USER www-data
 WORKDIR /var/www/MISP
@@ -133,17 +143,25 @@ RUN rm -rf misp-objects && git clone https://github.com/MISP/misp-objects.git &&
     chown -R www-data:www-data misp-objects misp-galaxy warninglists taxonomies
 
 # Install MISP build requirements
-RUN sudo -E apt-get -y install libpoppler73 libpoppler-dev libpoppler-cpp-dev
+RUN sudo -E apt-get -y install libpq5 libjpeg-dev tesseract-ocr libpoppler-cpp-dev imagemagick libopencv-dev zbar-tools libzbar0 libzbar-dev libfuzzy-dev 
 
 # Install MISP Modules
 WORKDIR /opt
-RUN git clone --branch v2.4.134 https://github.com/MISP/misp-modules.git
+RUN apt-get install -y cmake libcaca-dev liblua5.3-dev && \
+    git clone --branch v2.4.136 https://github.com/MISP/misp-modules.git && \
+    git clone https://github.com/stricaud/faup.git faup && \
+    git clone https://github.com/stricaud/gtcaca.git gtcaca 
+
+RUN mkdir -p gtcaca/build && cd gtcaca/build && cmake .. && make && make install && cd ../../ && \
+    mkdir -p faup/build && cd faup/build && cmake .. && make && make install && cd ../../ && \
+    ldconfig
+
 RUN cd misp-modules && \
-    pip3 install --upgrade pip setuptools wheel && \
-    pip3 install scikit-build && \    
-    pip3 install opencv-python && \ 
-    pip3 install -I -r REQUIREMENTS && \
-    pip3 install -I . && \
+    chgrp www-data . && chmod og+w . && \
+    /var/www/MISP/venv/bin/pip install -I -r REQUIREMENTS && \
+    sudo chgrp staff . && \
+    /var/www/MISP/venv/bin/pip install -I . && \
+    /var/www/MISP/venv/bin/pip install censys pyfaup && \
     echo "sudo -u www-data misp-modules -s -l 127.0.0.1 &" >>/etc/rc.local
 
 # Supervisord Setup

@@ -34,7 +34,7 @@ if [ -r /.firstboot.tmp ]; then
         if [ -z "$TIMEZONE" ]; then
                 echo "TIMEZONE is not set, please configure the local time zone manually later..."
         else
-                echo "$TIMEZONE" > /etc/timezone
+                ln -fs "/usr/share/zoneinfo/${TIMEZONE}" /etc/localtime
                 dpkg-reconfigure -f noninteractive tzdata >>/tmp/install.log
         fi
 
@@ -120,10 +120,13 @@ Passphrase: $MISP_ADMIN_PASSPHRASE
 %commit
 %echo Done
 GPGEOF
-                sudo -u www-data gpg --homedir /var/www/MISP/.gnupg --gen-key --batch /tmp/gpg.tmp >>/tmp/install.log
+                gpg --homedir /var/www/MISP/.gnupg --gen-key --batch /tmp/gpg.tmp >>/tmp/install.log
+                chown -R www-data:www-data /var/www/MISP/.gnupg 
                 rm -f /tmp/gpg.tmp
 		sudo -u www-data gpg --homedir /var/www/MISP/.gnupg --export --armor $MISP_ADMIN_EMAIL > /var/www/MISP/app/webroot/gpg.asc
         fi
+
+        /var/www/MISP/app/Console/cake Admin setSetting "MISP.python_bin" "/var/www/MISP/venv/bin/python"
 
         # Display tips
         cat <<__WELCOME__
