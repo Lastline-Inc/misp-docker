@@ -45,13 +45,51 @@ $ docker-compose -f docker-compose-nginx.yml build
 ```
 
 ## Run containers
-```
-$ docker-compose up
-or
-$ docker-compose -f docker-compose-nginx.yml up
-```
+**Follow the steps in order otherwise it won't work**
+1. Start the db container on `misp-db` VM
+    ```
+    docker-compose up -d db
+    ```
+2. Start the web container on `MISP-engine` VM
+    ```
+    docker-compose up -d web
+    ```
+
+## Troubleshooting
+- The containers are started in daemon mode (`-d` option), therefore to see the logs use:
+
+    ```
+    docker-compose logs -f
+    ``` 
+- To see which containers are currently runnning on the machine use:
+    ```
+    docker-compose ps
+    ```
+
+- To stop all the containers running on a machine use:
+    ```
+    docker-compose down --remove-orphans
+    ```
+
+- To have a shell into the container for debugging purposes use:
+    ```
+    docker-compose exec <CONTAINER_NAME> bash
+    ```
+
+## Data retention
+
+Since a filesystem of a container is ephimeral the data is written on the host inside the directories `data/web` and `data/db`. Therefore even restarting a container would not result in data loss.
+
+If you want to delete all the data and start from the initial state use the following procedure:
+
+1. Stop the container
+2. Delete everything inside `data/`
+3. Restart the container
 
 # Optional NGINX config - SSL certificates
+```
+$ docker-compose -f docker-compose-nginx.yml up -d
+```
 
 You can create the certificates manually if they are not automatically created.
 

@@ -3,8 +3,6 @@ version: '2'
 services:
   web:
     build: web
-    depends_on:
-      - db
     container_name: misp_web
     image: misp:latest
     restart: unless-stopped
@@ -28,6 +26,8 @@ services:
     container_name: misp_db
     image: mysql/mysql-server:5.7
     restart: unless-stopped
+    ports:
+      - "3306:3306"
     volumes:
       - ${DATA_DIR}/db:/var/lib/mysql
     environment:
