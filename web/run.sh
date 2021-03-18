@@ -98,9 +98,9 @@ if [ -r /.firstboot.tmp ]; then
         # Fix the base url
         if [ -z "$MISP_BASEURL" ]; then
                 echo "No base URL defined, don't forget to define it manually!"
-        else
-                echo "Fixing the MISP base URL ($MISP_BASEURL) ..."
-                sed -i "s/'baseurl' => '',/'baseurl' => '$MISP_BASEURL',/g" /var/www/MISP/app/Config/config.php
+        # else
+        #         echo "Fixing the MISP base URL ($MISP_BASEURL) ..."
+        #         sed -i "s/'baseurl' => '',/'baseurl' => '$MISP_BASEURL',/g" /var/www/MISP/app/Config/config.php
         fi
 
         # Generate the admin user PGP key
@@ -127,6 +127,7 @@ GPGEOF
         fi
 
         /var/www/MISP/app/Console/cake Admin setSetting "MISP.python_bin" "/var/www/MISP/venv/bin/python"
+        /var/www/MISP/app/Console/cake Admin setSetting "MISP.baseurl" "https://${MISP_BASEURL}"
 
         # Display tips
         cat <<__WELCOME__
