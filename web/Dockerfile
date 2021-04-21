@@ -1,4 +1,3 @@
-
 FROM ubuntu:20.04
 
 # Install core components
@@ -161,8 +160,8 @@ RUN cd misp-modules && \
     /var/www/MISP/venv/bin/pip install -I -r REQUIREMENTS && \
     sudo chgrp staff . && \
     /var/www/MISP/venv/bin/pip install -I . && \
-    /var/www/MISP/venv/bin/pip install censys pyfaup && \
-    echo "sudo -u www-data misp-modules -s -l 127.0.0.1 &" >>/etc/rc.local
+    /var/www/MISP/venv/bin/pip install censys pyfaup dnsdb2 socialscan && \
+    echo "sudo -u www-data /var/www/MISP/venv/bin/misp-modules -l 127.0.0.1 &" >>/etc/rc.local
 
 # Supervisord Setup
 RUN ( \
@@ -189,7 +188,7 @@ RUN ( \
     echo 'autorestart = false'; \
     echo ''; \
     echo '[program:misp-modules]'; \
-    echo 'command=/bin/bash -c "misp-modules -s -l 127.0.0.1"'; \
+    echo 'command=/bin/bash -c "/var/www/MISP/venv/bin/misp-modules -l 127.0.0.1"'; \
     echo 'user = www-data'; \
     echo 'startsecs = 0'; \
     echo 'autorestart = false'; \
